@@ -104,7 +104,7 @@ for t = 1:t_max
     
     alpha_top = w_a'*grad(I_active_w);
     alpha_bottom = sum(w_a .* (kernel(I_active_w, I_active_w)*w_a)); %w'A'Aw
-        if alpha_bottom == 0
+    if alpha_bottom == 0
         break
     end
     
@@ -133,7 +133,7 @@ for t = 1:t_max
         colorbar
         
         p_best = p(j_curr);
-        scatter(real(p_best), imag(p_best), [], 'r')     
+        scatter(real(p_best), imag(p_best), 150, 'r')     
         
         th = linspace(0, 2*pi, 400);
         plot3(cos(th), sin(th), zeros(size(th)));

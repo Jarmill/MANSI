@@ -10,7 +10,7 @@ k = length(p);
 r = abs(p);
 theta = angle(p);
 
-scale = (1 - r.^2)./2;
+scale = (1 - r.^2);
   
 %raise r to powers
 index_N = ones(1,N-2);
@@ -26,9 +26,8 @@ angles = mod(angles, 2*pi);
 angles(:, theta < 0) = angles(:, theta < 0) + pi/2;
 
 vandermonde = mag .* cos(angles);
-vandermonde_scaled = vandermonde * diag(scale);
 
-A = [zeros(1,k);ones(1,k); vandermonde_scaled];
+A = [zeros(1,k);ones(1,k); vandermonde] * diag(scale);
 
 
 end
