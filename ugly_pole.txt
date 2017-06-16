@@ -1,0 +1,5 @@
+0.0322 + 0.9990i (cos)
+has wrong scaling factor
+
+0.9995*exp(1.5385 i)
+N = 100

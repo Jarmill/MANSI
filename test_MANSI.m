@@ -8,45 +8,103 @@ addpath(genpath('../3rdParty/thesisCode'));
 % roots(sys_par{1})
 
 % load dict;
-% p = rp.*exp(1i*thetap);
-% In.p_in = p;
+% p_sys = rp.*exp(1i*thetap);
+% In.p_in = p_sys;
 
-% p = genPoleOnRing(0.1, 0.95, 0.1, 0.1);
-% In.p_in = p;
-% In.k = length(p);
+% p_sys = genPoleOnRing(0.1, 0.95, 0.1, 0.1);
+% In.p_in = p_sys;
+% In.k = length(p_sys);
 
-% p = [0.3+0.5j, 0.3-0.5j, 0.8];
-% p = [0.5*exp(0.1j), 0.5*exp(-0.1j), 0.8];
-p = [0.5];
-%p = [-0.005 + 0.5j; -0.005 - 0.5j];
-%p = [0.95j; -0.95j];
-%p = [-0.5 + 0.5j, -0.5 - 0.5j, 0.7];
+% p_sys = [0.3+0.5j, 0.3-0.5j, 0.8];
+% p_sys = [0.5*exp(0.1j), 0.5*exp(-0.1j), 0.8];
+%p_sys = [0.5*exp(0.1j), 0.5*exp(-0.1j)];
+%p_sys = [-0.9; 0.5];
+%p_sys = [0; 0.9];
+%p_sys = [0.65];
+%p_sys = [1/sqrt(2)];
+%p_sys = [-0.005 + 0.5j; -0.005 - 0.5j];
+%p_sys = [0.95j; -0.95j];
+%p_sys = [0.7j; -0.7j; 0.2];
+%p_sys = [-0.5 + 0.5j, -0.5 - 0.5j];
+%p_sys = [-1];
+%p_sys = [0.75; 0.95];
+%p_sys = [0.0; 0.8];
+p_sys = [0.3; 0.5];
+%p_sys = [0.6];
+%p_sys = [-0.5 + 0.5j, -0.5 - 0.5j, 0.7];
+
 b = [1];
-a = poly(p);
-sysd = tf(b, a, 1);
-[c_true, ~, ~] = residue(b, a);
-y = impulse(sysd, 0:100);
+%b = [length(p_sys) sum(p_sys)]
+%b = [1 0.5];
+%b = [1 0];
+a = poly(p_sys);
+Fs = 1;
+sysd = tf(b, a, Fs);
+[r, ~, ~] = residue(b, a);
+c_true = r;
+%deal with complex poles/complex residues
+%as per convention, imag(p)>0: cos, imag(p)<0: sin, imag(p)=0: exp
+% c_true(imag(p_sys) > 0) = 2*real(c_true(imag(p_sys) > 0));
+% c_true(imag(p_sys) < 0) = 2*imag(c_true(imag(p_sys) < 0));
 
-N = size(y, 1);
-In.ym = y;
-In.T = eye(N);
-%In.tau.tauAtom = 5;
-In.tau.tauAtom = 2;
+c_true(imag(c_true) > 0) = 2*real(c_true(imag(c_true) > 0));
+c_true(imag(c_true) < 0) = 2*imag(c_true(imag(c_true) < 0));
+
+%In.visualize = 0;
+In.visualize = 1;
+In.visualize_end = 1;
+
+%In.tau.tauAtom = 2.25;
+In.tau.tauAtom = 5;
+%In.tau.tauAtom = 1.3;
+%In.tau.tauAtom = 1.6;
 %In.tau.tauAtom = 1;
-In.t_max = 1000;
+In.tau.delta = 1e-4; %Elastic Net Regularization
+%In.tau.delta = 0; %Elastic Net Regularization
+In.t_max = 10000;
 In.k = 150;
 
+N = 101;
+response_type = 0;
+if response_type == 1
+    %step response
+    %no idea how this will go
+    
+    %the scaling for this is screwed up. massively.
+    %and the closed-form formulas are horrific
+    In.T = tril(ones(N));
+    y = step(sysd, 0:N-1);
+else
+    %impulse response
+    In.T = eye(N);
+    y = impulse(sysd, 0:N-1);
+end
+In.ym = y;
 
-%radius = 8;
-%radius = 11;
-Npoles = 2*radius - 1;
-[poles_xx, poles_yy] = meshgrid(linspace(-1, 1, Npoles));
+%radius = 5;
+%radius = 20;
+radius = 30;
+%radius = 40;
+%radius = 100;
+Npoles = 2*radius + 1;
+rho = 1;
+
+%poles on unit circle will ring forever, are excluded.
+[poles_xx, poles_yy] = meshgrid(linspace(-rho, rho, Npoles));
 poles = poles_xx + 1.0j*poles_yy;
 poles_circ = poles(abs(poles) <= 1);
+
+%real axis only, exponents for testing
+%poles_circ = linspace(-1, 1, Npoles)';
+
+%clear up numerical artifacts
+poles_circ(abs(imag(poles_circ)) < 1e-15) = real(poles_circ(abs(imag(poles_circ)) < 1e-15));
+poles_circ(abs(real(poles_circ)) < 1e-15) = 1.0j * imag(poles_circ(abs(real(poles_circ)) < 1e-15));
+
 In.p_in = poles_circ';
 In.k = length(poles_circ);
 
-In.visualize = 1;
+
 %Out = atomic_SISO(In);
 %Out = ANSI_forward(In);
 Out = ANSI_away(In);
@@ -68,14 +126,13 @@ xlabel('t');
 ylabel('input and output signal');
 title('Atomic norm approximation');
 
-
 c = Out.c;
 subplot(1, 2, 2)
 active_ind = find(c ~= 0);
 poles_active = poles_circ(active_ind);
 
 hold on
-stem3(real(p), imag(p), c_true)
+stem3(real(p_sys), imag(p_sys), c_true)
 stem3(real(poles_active), imag(poles_active), c(active_ind))
 
 th = linspace(0, 2*pi, 400);
@@ -84,15 +141,9 @@ plot3(cos(th), sin(th), zeros(size(th)), 'color', [0 .5 0] )
 hold off
 axis square
 view(3)
-title('Pole Map')
+title(strcat('Pole Map (', num2str(nnz(c)), '/', num2str(length(c)),')'))
+
 %legend groundtruth estimated
 xlabel('Re(z)')
 ylabel('Im(z)')
 zlabel('Coefficients')
-% [~, indind] = sort(-abs(c));
-% c = c(indind);
-% p = Out.p;
-% p = p(indind);
-% 
-% ind = find(c);
-% p_est = p(ind);
