@@ -1,4 +1,4 @@
-function out = ANSI_away(In)
+function out = ANSI_pair(In)
 % Atomic Norm System ID
 % Later to be used for Multiresolution exploration
 % includes away steps to speed up convergence and promote sparsity
@@ -27,16 +27,6 @@ else
     pole_array =false;
 end
 
-if isfield(In,'complex')
-    if In.complex
-        complex = true;
-    else
-        complex = false;
-    end
-else
-    complex =false;
-end
-
 if isfield(In, 'visualize') && In.visualize == 1
     visualize = 1;
 else
@@ -63,17 +53,18 @@ end
 
 %preprocessing
 p = p_in;
-A = pole_matrix(p, N, complex);
+A = pole_matrix(p, N, 0);
 
 %perform scaling
-scale = pole_scales(p, N, complex);
-%scale_true = 1./sqrt(sum(A.*conj(A), 1)); %for reference
-A_s = bsxfun(@times, A, scale);
+scale = pole_scales(p, N)';
+A_s = bsxfun(@times, A, scale');
 
 %B = T*A; %to use the L1 formulation, everything is T*A rather than A
 B = T*A_s;
 
-%scale_true = 1./sqrt(sum(A.*conj(A), 1));
+%scaling needs to be done down here on the B matrix
+% scale = 1./sqrt(sum(B.^2, 1))';
+% B_s = bsxfun(@times, B, scale');
 
 %pole coefficients
 x = zeros([size(B, 2), 1]);
@@ -119,55 +110,75 @@ for t = 1:t_max
     at_fw = -sign(grad(j_fw));
     w_fw(j_fw) = w_fw(j_fw) + at_fw*tau;
     
-    dual_gap_fw = -w_fw'*grad;
     %dual_gap_dot = (-w_fw'*grad)/(norm(w_fw)*norm(grad));
     
     %% Away Step
     c = norm(x, 1);
     
-    if t > 1      
-        %if c >= tau
-        if tau - c <= 1e-14
-            %tight against boundary, limited choice in away atoms
-            at_valid = -sign(x(I_active));
-            [~, i_aw] = max(grad(I_active).*at_valid);
-            j_aw = I_active(i_aw);
+    if ((t > 1) || nnz(x) > 0)
+        %modify pairwise step selection if on the boundary
+        
+        %normal selection would go outside boundary, result in alpha_max =
+        %0
+        if norm(x, 1) >= tau && (sign(x(j_fw)) == at_fw || x(j_fw) == 0)
+            %check these lines
+            I_active_b = I_active;
+            I_active_b(I_active_b == j_fw) = [];
+            
+            
+            at_valid = -sign(x(I_active_b)); %feasible atoms, since tight on boundary
+            [~, i_aw] = max(grad(I_active_b).*at_valid);
+            j_aw = I_active_b(i_aw);
             at_aw = at_valid(i_aw);
+
+        %normal pairwise step selection
         else
-            %interior, free choice of away atoms
             [~, i_aw] = max(abs(grad(I_active)));
             j_aw = I_active(i_aw); %indices of indices. hate it.
             at_aw = -sign(grad(j_aw));
         end
-        
-        w_aw = x;
-        w_aw(j_aw) = w_aw(j_aw) + at_aw*tau; % opposite of forward direction
-
     else
-        w_aw = zeros([size(B, 2), 1]);
+        j_aw = j_fw;
+        at_aw = -sign(grad(j_aw));
     end
       
-    dual_gap_aw = -w_aw'*grad;
+    w_pw = zeros([size(A, 2), 1]);
+    w_pw(j_fw) = w_pw(j_fw) + at_fw*tau;
+    w_pw(j_aw) = w_pw(j_aw) + at_aw*tau;
+
+    dual_gap_fw = -w_fw'*grad;
+    dual_gap_pw = -w_pw'*grad;
     
     %% Stepsize Calculation    
-    if pureFW || t == 1 || (dual_gap_fw >= dual_gap_aw)% || (norm(x, 1) >= tau)
-        is_away = 0;
-        w = w_fw;
-        alpha_max = 1;
-        j_curr = j_fw;
-        dual_gap = dual_gap_fw;
-    else
-        is_away = 1;
-        w = w_aw;
-        if sign(x(j_aw)) == sign(grad(j_aw))
+    %is_pair = (dual_gap_pw >= dual_gap_fw) && (norm(x, 1) < tau) && ~pureFW;
+    is_pair = (dual_gap_pw >= dual_gap_fw) && ~pureFW;
+    
+    if is_pair     
+        w = w_pw;
+        if at_aw == 0
+            %make sure that w has a norm of 2*tau
+            w = 2*w;
+        end
+        
+        c = norm(x, 1);
+        if sign(x(j_fw)) == -sign(w(j_fw))
+            c = c - 2*abs(x(j_fw));
+        end
+
+        if (sign(x(j_aw)) == -sign(w(j_aw)))
             c = c - 2*abs(x(j_aw));
         end
-        alpha_max = (tau - c)/(tau + c);
-        j_curr = j_aw;
-        dual_gap = dual_gap_aw;
+
+        alpha_max = (tau - c)/(2*tau);
+
+    else
+        w = w_fw;
+        alpha_max = 1;
     end
-        
-    dual_gap_dot = dual_gap/(norm(w)*norm(grad));
+
+    dual_gap = -w'*grad;
+    dual_gap_dot = dual_gap / (norm(w, 2)*norm(grad, 2));
+
     
     I_active_w = find(abs(w) > 0); %union is inefficient apparently
     w_a = w(I_active_w); %nonzero w values
@@ -190,8 +201,8 @@ for t = 1:t_max
     %terminate = dual_gap_dot < 0.01;
     %terminate = dual_gap_dot < 0.001;
     %terminate = dual_gap_dot < 1e-5;
-    terminate = dual_gap < 1e-5 || (t == t_max-1);
-    %terminate = dual_gap < 1e-8 || (t == t_max-1);
+    %terminate = dual_gap < 1e-5;
+    terminate = dual_gap < 1e-8 || (t == t_max-1);
     
     if visualize || visualize_end
         %record data for later
@@ -210,17 +221,23 @@ for t = 1:t_max
         stem3(real(p(active_old)), imag(p(active_old)), x(active_old), '.')
         stem3(real(p(active_new)), imag(p(active_new)), x_new(active_new), '.')
         
+        %active stuff
         scatter(real(p), imag(p), [], abs(grad), '.')
+
         cb = colorbar;
         ylabel(cb, 'abs(grad)')
         
-        best_pole = p(j_curr);
-        if is_away
-            color = 'g';
+        best_pole = p(j_fw);
+        if is_pair
+            best_pole_pair = p(j_aw);
         else
-            color = 'r';
+            best_pole_pair = NaN;
         end
-        scatter3(real(best_pole), imag(best_pole), x_new(j_curr), 150, color)     
+
+        scatter3(real(best_pole), imag(best_pole), x_new(j_fw), [], 'r')     
+        if is_pair
+            scatter3(real(best_pole_pair), imag(best_pole_pair), x_new(j_aw), [], 'xg')
+        end
         
         th = linspace(0, 2*pi, 400);
         plot3(cos(th), sin(th), zeros(size(th)), 'color', [0 .5 0]);
@@ -279,14 +296,14 @@ for t = 1:t_max
         hold on
         y_hat = B*x_new;
         
-        plot(y,'*');
-        hold on;
-        plot(y_hat,'o');
-        hold off;
-        legend groundtruth estimated
-        xlabel('t');
-        ylabel('system response');
-        title('Atomic norm approximation');
+    plot(y,'*');
+    hold on;
+    plot(y_hat,'o');
+    hold off;
+    legend groundtruth estimated
+    xlabel('t');
+    ylabel('system response');
+    title('Atomic norm approximation');
     
     end
     
@@ -303,7 +320,7 @@ time_elapsed = toc;
 out.time_elapsed = time_elapsed;
 out.iter = t;
 
-x_out = scale' .* x;
+x_out = scale .* x;
 
 %final output
 out.c = x_out;

@@ -29,8 +29,9 @@ addpath(genpath('../3rdParty/thesisCode'));
 %p_sys = [-1];
 %p_sys = [0.75; 0.95];
 %p_sys = [0.0; 0.8];
-p_sys = [0.3; 0.5];
-%p_sys = [0.6];
+%p_sys = [0.3; 0.5];
+%p_sys = [0.3; 0.7];
+p_sys = [0.6];
 %p_sys = [-0.5 + 0.5j, -0.5 - 0.5j, 0.7];
 
 b = [1];
@@ -50,18 +51,23 @@ c_true = r;
 c_true(imag(c_true) > 0) = 2*real(c_true(imag(c_true) > 0));
 c_true(imag(c_true) < 0) = 2*imag(c_true(imag(c_true) < 0));
 
-%In.visualize = 0;
 In.visualize = 1;
 In.visualize_end = 1;
 
 %In.tau.tauAtom = 2.25;
-In.tau.tauAtom = 5;
-%In.tau.tauAtom = 1.3;
-%In.tau.tauAtom = 1.6;
+%In.tau.tauAtom = 5;
+%In.tau.tauAtom = 1.2;
+In.tau.tauAtom = 1.6;
 %In.tau.tauAtom = 1;
+
+
 In.tau.delta = 1e-4; %Elastic Net Regularization
 %In.tau.delta = 0; %Elastic Net Regularization
-In.t_max = 10000;
+
+In.tau.lambda = 1e-1;
+%In.tau.lambda = 1e-2;
+
+In.t_max = 500;
 In.k = 150;
 
 N = 101;
@@ -82,10 +88,10 @@ end
 In.ym = y;
 
 %radius = 5;
-%radius = 20;
-radius = 30;
+radius = 10;
+%radius = 30;
 %radius = 40;
-%radius = 100;
+%radius = 200;
 Npoles = 2*radius + 1;
 rho = 1;
 
@@ -93,6 +99,7 @@ rho = 1;
 [poles_xx, poles_yy] = meshgrid(linspace(-rho, rho, Npoles));
 poles = poles_xx + 1.0j*poles_yy;
 poles_circ = poles(abs(poles) <= 1);
+%poles_circ = reshape(poles_circ, [1, length(poles_circ)]);
 
 %real axis only, exponents for testing
 %poles_circ = linspace(-1, 1, Npoles)';
@@ -107,7 +114,9 @@ In.k = length(poles_circ);
 
 %Out = atomic_SISO(In);
 %Out = ANSI_forward(In);
-Out = ANSI_away(In);
+%Out = ANSI_away(In);
+%Out = ANSI_pair(In);
+Out = ADMMSI(In);
 y_hat = Out.h;
 
 % In.Nf = 2^8;
