@@ -38,8 +38,8 @@ p = poles_circ;
 
 %arc_radius = 1/2;
 %arc_radius = 1/sqrt(2);
-%arc_radius = 0.999;
-%arc_radius = 1;
+%arc_radius = 0.99;
+%arc_radius = 0.9999;
 
 %%upper arc (cos)
 %p = exp(1.0j*linspace(0, pi, 2*radius+1))*arc_radius;
@@ -50,16 +50,18 @@ p = poles_circ;
 %p = exp(1.0j*linspace(-pi, 0, 2*Npoles+1))/sqrt(2);
 
 %full circle
-%p = exp(1.0j*linspace(-pi, pi, 4*Npoles+1))/sqrt(2);
+%p = exp(1.0j*linspace(-pi, pi, 4*Npoles+1))*arc_radius;
 
 %p = [0.7+0.5j, 0.7-0.5j];
 
+%p = [0.995*exp(0.5j), 0.995*exp(-0.5j)];
+%p = [arc_radius*exp(0.5j), arc_radius*exp(-0.5j)];
 p(abs(imag(p)) < 1e-15) = real(p(abs(imag(p)) < 1e-15));
 p(abs(real(p)) < 1e-15) = 1.0j * imag(p(abs(real(p)) < 1e-15));
 
 
 %% matrix stuff
-complex = 1;
+complex = 0;
 A = pole_matrix(p, N, complex);
 scale = pole_scales(p, N, complex);
 %scale = pole_scales(p, Inf, complex);

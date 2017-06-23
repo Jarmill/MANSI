@@ -1,8 +1,23 @@
-%% Atomic Norm sysid testing
+% system identification of trajectories
+
+addpath(genpath('../3rdParty/thesisCode'));
+
+% rng(0);
+% data_generation;
+% y = data(2001, :)';
+% roots(sys_par{1})
+
+% load dict;
+% p_sys = rp.*exp(1i*thetap);
+% In.p_in = p_sys;
+
+% p_sys = genPoleOnRing(0.1, 0.95, 0.1, 0.1);
+% In.p_in = p_sys;
+% In.k = length(p_sys);
 
 % p_sys = [0.3+0.5j, 0.3-0.5j, 0.8];
-%p_sys = [0.9*exp(2.5j), 0.9*exp(-2.5j)];
-%p_sys = [0.8*exp(0.1j), 0.8*exp(-0.1j)];
+%p_sys = [0.5*exp(0.1j), 0.5*exp(-0.1j)];
+p_sys = [0.8*exp(0.1j), 0.8*exp(-0.1j)];
 %p_sys = [-0.9; 0.5];
 %p_sys = [0; 0.9];
 %p_sys = [0.65];
@@ -16,12 +31,11 @@
 %p_sys = [0.0; 0.8];
 %p_sys = [0.3; 0.5];
 %p_sys = [0.3; 0.7];
-p_sys = [0.6];
+%p_sys = [0.6];
 %p_sys = [-0.5 + 0.5j, -0.5 - 0.5j, 0.7];
 
-b = [1];
-%b = [1 -0.5];
-%b = [1 0.8];
+%b = [1];
+b = [1 -0.5];
 %b = [length(p_sys) sum(p_sys)]
 %b = [1 0.5];
 %b = [1 0];
@@ -39,13 +53,13 @@ c_true(imag(c_true) > 0) = 2*real(c_true(imag(c_true) > 0));
 c_true(imag(c_true) < 0) = 2*imag(c_true(imag(c_true) < 0));
 
 In.visualize = 0;
-In.visualize_end = 0;
+In.visualize_end = 1;
 
 %In.tau.tauAtom = 2.25;
 %In.tau.tauAtom = 5;
 %In.tau.tauAtom = 1.24;
-In.tau.tauAtom = 3.4;
-%In.tau.tauAtom = 1.0;
+%In.tau.tauAtom = 1.7;
+In.tau.tauAtom = 2;
 
 
 In.tau.delta = 1e-4; %Elastic Net Regularization
@@ -54,7 +68,7 @@ In.tau.delta = 1e-4; %Elastic Net Regularization
 %In.tau.lambda = 1e-1;
 %In.tau.lambda = 1e-2;
 
-In.t_max = 1000;
+In.t_max = 500;
 In.k = 150;
 
 N = 101;
@@ -86,14 +100,16 @@ rho = 1;
 [poles_xx, poles_yy] = meshgrid(linspace(-rho, rho, Npoles));
 poles = poles_xx + 1.0j*poles_yy;
 poles_circ = poles(abs(poles) <= 1);
-poles_circ = reshape(poles_circ, [1, length(poles_circ)]);
+%poles_circ = reshape(poles_circ, [1, length(poles_circ)]);
+
+%real axis only, exponents for testing
+%poles_circ = linspace(-1, 1, Npoles)';
 
 %clear up numerical artifacts
-poles_circ(abs(imag(poles_circ)) < 1e-10) = real(poles_circ(abs(imag(poles_circ)) < 1e-10));
-poles_circ(abs(real(poles_circ)) < 1e-10) = 1.0j * imag(poles_circ(abs(real(poles_circ)) < 1e-10));
+poles_circ(abs(imag(poles_circ)) < 1e-15) = real(poles_circ(abs(imag(poles_circ)) < 1e-15));
+poles_circ(abs(real(poles_circ)) < 1e-15) = 1.0j * imag(poles_circ(abs(real(poles_circ)) < 1e-15));
 
-In.p_in = poles_circ;
-%In.p_in = poles_circ';
+In.p_in = poles_circ';
 In.k = length(poles_circ);
 
 
@@ -104,7 +120,6 @@ Out = ANSI_away(In);
 %Out = ADMMSI(In);
 y_hat = Out.h;
 
-%% Plotting and Output
 
 figure
 subplot(1, 2, 1)
@@ -208,8 +223,8 @@ hold on
 sd = scatter(real(sysd_zero), imag(sysd_zero), 150, 'bo');
 scatter(real(sysd_pole), imag(sysd_pole), 150, 'bx')
 
-sr = scatter(real(sysr_zero), imag(sysr_zero), 70, 'ko');
-scatter(real(sysr_pole), imag(sysr_pole), 70, 'kx')
+sr = scatter(real(sysr_zero), imag(sysr_zero), 60, 'ko');
+scatter(real(sysr_pole), imag(sysr_pole), 60, 'kx')
 
 sp = scatter(real(sysp_zero), imag(sysp_zero), 20, 'ro');
 scatter(real(sysp_pole), imag(sysp_pole), 20, 'rx')

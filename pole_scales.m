@@ -17,7 +17,7 @@ theta_all = angle(p);
 
 %'horizon length'. is a very tricky quantity.
 base = N-1;
-
+%base = N+1;
 if complex
     norm2_complex = zeros(size(p));
     index   = find(r_all < 1);

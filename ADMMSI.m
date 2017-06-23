@@ -193,7 +193,7 @@ while ~terminate
     end
 
     %setup for next iteration
-    t = t + 1;
+t = t + 1;
     rho = min(rho*rho_increment, rho_max);
     old_en_error = new_en_error;
     old_gap_error = new_gap_error;

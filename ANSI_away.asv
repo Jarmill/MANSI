@@ -151,9 +151,15 @@ for t = 1:t_max
     
     %% Stepsize Calculation    
     
-    is_away = ~pureFW && (t > 1) && (dual_gap_aw >= dual_gap_fw);
-    
-    if is_away
+    is_away = ~pureFW && (t > 11) && (dual_gap_aw
+    if pureFW || t == 1 || (dual_gap_fw >= dual_gap_aw)
+        is_away = 0;
+        w = w_fw;
+        alpha_max = 1;
+        j_curr = j_fw;
+        dual_gap = dual_gap_fw;
+    else
+        is_away = 1;
         away_steps = away_steps + 1;
         w = w_aw;
         if sign(x(j_aw)) == sign(grad(j_aw))
@@ -162,13 +168,8 @@ for t = 1:t_max
         alpha_max = (tau - c)/(tau + c);
         j_curr = j_aw;
         dual_gap = dual_gap_aw;
-    else
-        w = w_fw;
-        alpha_max = 1;
-        j_curr = j_fw;
-        dual_gap = dual_gap_fw;
     end
-          
+        
     dual_gap_dot = dual_gap/(norm(w)*norm(grad));
     
     I_active_w = find(abs(w) > 0); %union is inefficient apparently
