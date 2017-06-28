@@ -281,9 +281,9 @@ for t = 1:t_max
         hold on
         y_hat = B*x_new;
         
-        plot(y,'*');
+        plot(y,'-*');
         hold on;
-        plot(y_hat,'o');
+        plot(y_hat,'-o');
         hold off;
         legend groundtruth estimated
         xlabel('t');

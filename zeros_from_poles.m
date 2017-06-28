@@ -10,12 +10,16 @@ N = length(p);
 
 b = zeros([1, length(p)]);
 
-for idx = 1:N
-    p_active = p(idx);
-    ptemp = p;
-    ptemp(idx) = NaN; %omit the pole at idx, partial fraction
-    btemp = poly(ptemp);
-    b = b + r(idx) .* btemp;
+if N > 1
+    for idx = 1:N
+        p_active = p(idx);
+        ptemp = p;
+        ptemp(idx) = NaN; %omit the pole at idx, partial fraction
+        btemp = poly(ptemp);
+        b = b + r(idx) .* btemp;
+    end
+else
+    b = r;
 end
 
 %b is now the polynomial on top

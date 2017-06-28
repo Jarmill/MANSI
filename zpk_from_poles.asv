@@ -1,0 +1,76 @@
+function [sys, sys_reduce] = zpk_from_poles(c, p, tol)
+%from coefficients and poles, generates system
+%needs to find residues of expansion first 
+
+%c: list of coefficients of responses (real, sin/cos)
+%p: locations of active poles in system
+%tol: tolerance of pole/zero cancellation
+
+ind_p_real = find(abs(imag(p)) <= 1e-8);
+ind_p_trig = find(abs(imag(p))  > 1e-8);
+
+N_real = length(ind_p_real);
+p_real = p(ind_p_real);
+r_real = c(ind_p_real);
+
+pt = p(ind_p_trig);
+ptc = conj(pt);
+
+%full set of complex poles
+ptu = union(pt, ptc);
+
+%here's where things get odd
+%find poles with nonzero coefficients
+%load these in to the c array 
+%generate residues r from c
+c_trig = zeros(size(ptu));
+N_trig = length(ptu);
+[~, ipsort] = sort(pt);
+p_locations = find(ismember(ptu, pt));
+c_trig(p_locations) = c(ipsort);
+
+%fill in values of residues
+r_trig = zeros(size(ptu));
+
+ind_cos = 1:2:N_trig;
+ind_sin = 2:2:N_trig;
+
+residue_top    = (c(ind_cos) + 1.0j*cu(ind_sin))/2;
+residue_bottom = (c(ind_cos) - 1.0j*cu(ind_sin))/2;
+
+r_trig(ind_cos) = residue_top;
+r_trig(ind_sin) = residue_bottom;
+
+%% find resultant system
+sys_real = 0;
+sys_trig = 0;
+
+for i = 1:N_real
+    sys_curr_real = tf([], p_real(i), r_real(i));
+    sys_real = sys_real + sys_curr_real;
+end
+
+for i = 1:N_trig
+    rc = r_trig(i);
+    pcurr = p_trig(i);
+    k = rc + conj(rc);
+    s = (rc*conj(pcurr) + conj(rc)*pcurr);
+    
+    %k = 0, pure cos
+    %k = Inf, pure sin
+    %k = else, mix
+    %need to validate
+    
+    if k == 0
+        sys_curr_trig = zpk([], [pcurr, conj(pcurr)], -s, Fs);
+    else
+        sys_curr_trig = zpk(s/k, [pcurr, conj(pcurr)], k, Fs);
+    end
+
+    sys_trig = sys_trig + sys_curr_trig;
+end
+
+sys = sys_real + sys_trig;
+sys_reduce = minreal(sys, tol);
+
+end
